@@ -9,7 +9,7 @@ var _ = require('lodash');
 
 // avoid dash
 shortid.characters(
-  '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$')
+  '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$');
 
 var observeFunction = fs.readFileSync(
   path.join(__dirname, 'pgobserve.py'), 'utf8');
