@@ -26,6 +26,7 @@ var client = new pg.Client(conString);
 var backendPid;
 var observeId = shortid.generate();
 var listenChannel;
+var triggersToDrop = [];
 
 client.on('notification', function (msg) {
   console.log('Notified; polling!');
@@ -74,6 +75,20 @@ function pollQuery (task, cb) {
   });
 };
 
+function cleanupTriggers (exitCode) {
+  async.eachSeries(triggersToDrop, function (t, cb) {
+    client.query(
+      pgFormat('DROP TRIGGER IF EXISTS %I ON %I', t.trigger, t.table),
+      cb);
+  }, function (err) {
+    if (err) {
+      console.error("Cleanup error", err);
+      process.exit(1);
+    }
+    process.exit(exitCode);
+  });
+};
+
 async.waterfall([
   // Connect.
   function (cb) {
@@ -88,13 +103,16 @@ async.waterfall([
     client.query('SELECT pg_backend_pid();', cb);
   },
   function (pidResult, cb) {
+    // Listen for changes.
     backendPid = pidResult.rows[0].pg_backend_pid;
     listenChannel = 'notify_' + backendPid + '_' + observeId;
     client.query(pgFormat('LISTEN %I', listenChannel), cb);
   },
   function (result, cb) {
+    // Set up triggers.
     async.eachSeries(tableNames, function (tableName, cb) {
       var triggerName = 'observe_' + backendPid + '_' + observeId;
+      triggersToDrop.push({ trigger: triggerName, table: tableName });
       async.series([
         function (cb) {
           client.query(
@@ -111,13 +129,29 @@ async.waterfall([
         }
       ], cb);
     }, cb);
+  },
+  function (cb) {
+    // Register to drop triggers. (If we fail, a background superuser process
+    // can use pg_stat_activity to find current pids and clean up those that
+    // aren't current.)
+    process.once('beforeExit', function () {
+      cleanupTriggers(0);
+    });
+    process.on('SIGINT', function () {
+      cleanupTriggers(1);
+    });
+    process.on('SIGTERM', function () {
+      cleanupTriggers(1);
+    });
+    cb();
+  },
+  function (cb) {
+    console.log("Observing!");
+    needToPollQuery();
   }
 ], function (error) {
   if (error) {
     console.error("Got error:", error);
     process.exit(1);
   }
-  console.log("Observing!");
-  needToPollQuery();
 });
-

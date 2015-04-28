@@ -20,7 +20,7 @@ CREATE OR REPLACE FUNCTION observe() RETURNS trigger AS $$
   new_digest = h.digest()
 
   # Note: this GD is shared across tables (unlike SD) but is still
-  # session-local.
+  # session-local.  That's OK though, since each observe is per-session anyway.
   key = 'digest_%s' % observe_id
   old_digest, GD[key] = GD.get(key), new_digest
   should_notify = False
