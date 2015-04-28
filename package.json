@@ -1,0 +1,19 @@
+{
+  "name": "postgres-hack",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^0.9.0",
+    "cli-table": "^0.3.1",
+    "lodash": "^3.7.0",
+    "pg": "^4.3.0",
+    "pg-format": "^0.1.4",
+    "shortid": "^2.2.2"
+  }
+}
