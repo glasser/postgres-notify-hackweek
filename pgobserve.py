@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION observe() RETURNS trigger AS $$
+CREATE FUNCTION pg_temp.observe() RETURNS trigger AS $$
   if 'module_hashlib' in SD:
     hashlib = SD['module_hashlib']
   else:

@@ -26,7 +26,6 @@ var client = new pg.Client(conString);
 var backendPid;
 var observeId = shortid.generate();
 var listenChannel;
-var triggersToDrop = [];
 
 client.on('notification', function (msg) {
   console.log('Notified; polling!');
@@ -75,20 +74,6 @@ function pollQuery (task, cb) {
   });
 };
 
-function cleanupTriggers (exitCode) {
-  async.eachSeries(triggersToDrop, function (t, cb) {
-    client.query(
-      pgFormat('DROP TRIGGER IF EXISTS %I ON %I', t.trigger, t.table),
-      cb);
-  }, function (err) {
-    if (err) {
-      console.error("Cleanup error", err);
-      process.exit(1);
-    }
-    process.exit(exitCode);
-  });
-};
-
 async.waterfall([
   // Connect.
   function (cb) {
@@ -112,7 +97,6 @@ async.waterfall([
     // Set up triggers.
     async.eachSeries(tableNames, function (tableName, cb) {
       var triggerName = 'observe_' + backendPid + '_' + observeId;
-      triggersToDrop.push({ trigger: triggerName, table: tableName });
       async.series([
         function (cb) {
           client.query(
@@ -123,27 +107,12 @@ async.waterfall([
           client.query(
             pgFormat(
               ('CREATE TRIGGER %I AFTER INSERT OR UPDATE OR DELETE ON %I ' +
-               'EXECUTE PROCEDURE observe(%L, %L, %L);'),
+               'EXECUTE PROCEDURE pg_temp.observe(%L, %L, %L);'),
               triggerName, tableName, query, observeId, listenChannel),
             cb);
         }
       ], cb);
     }, cb);
-  },
-  function (cb) {
-    // Register to drop triggers. (If we fail, a background superuser process
-    // can use pg_stat_activity to find current pids and clean up those that
-    // aren't current.)
-    process.once('beforeExit', function () {
-      cleanupTriggers(0);
-    });
-    process.on('SIGINT', function () {
-      cleanupTriggers(1);
-    });
-    process.on('SIGTERM', function () {
-      cleanupTriggers(1);
-    });
-    cb();
   },
   function (cb) {
     console.log("Observing!");

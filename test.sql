@@ -26,6 +26,8 @@ SELECT * from users ORDER BY id;
 
 SELECT * from posts ORDER BY id;
 
+SELECT posts.id AS postId, users.name AS userName, posts.contents FROM posts JOIN users ON posts.author = users.id;
+
 SELECT tgname, relname FROM pg_trigger JOIN pg_class ON pg_trigger.tgrelid = pg_class.oid WHERE tgName LIKE 'observe_%';
 
 INSERT INTO posts (author, contents) VALUES (4, 'ekate post 2');
